@@ -1,0 +1,11 @@
+# binary
+skiffscan
+
+# editor
+*.swp
+*~
+.idea/
+.vscode/
+
+# os
+.DS_Store
