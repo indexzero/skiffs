@@ -4,6 +4,7 @@ package git
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"net/url"
 	"os/exec"
 	"path"
@@ -27,6 +28,9 @@ func runGit(ctx context.Context, dir string, args ...string) (string, error) {
 	cmd.Stderr = &stderr
 	err := cmd.Run()
 	if err != nil {
+		if stderr.Len() > 0 {
+			return "", fmt.Errorf("%w: %s", err, strings.TrimSpace(stderr.String()))
+		}
 		return "", err
 	}
 	return stdout.String(), nil
