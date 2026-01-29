@@ -15,13 +15,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
+// scanConfig holds configuration for a scan operation.
+type scanConfig struct {
 	roots      []string
 	filter     string
 	outputFmt  string
 	workers    int
 	ignorePats []string
-)
+}
 
 var rootCmd = &cobra.Command{
 	Use:   "skiffscan",
@@ -38,23 +39,49 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.Flags().StringArrayVarP(&roots, "root", "r", []string{"."}, "root directories to scan")
-	rootCmd.Flags().StringVarP(&filter, "filter", "f", "dirty", "filter: all|dirty|uncommitted|unpushed|unpulled")
-	rootCmd.Flags().StringVarP(&outputFmt, "output", "o", "table", "output format: table|json")
-	rootCmd.Flags().IntVarP(&workers, "workers", "w", 8, "concurrent git operations")
-	rootCmd.Flags().StringArrayVarP(&ignorePats, "ignore", "i", scanner.DefaultIgnorePatterns(), "glob patterns to ignore")
+	rootCmd.Flags().StringArrayP("root", "r", []string{"."}, "root directories to scan")
+	rootCmd.Flags().StringP("filter", "f", "dirty", "filter: all|dirty|uncommitted|unpushed|unpulled")
+	rootCmd.Flags().StringP("output", "o", "table", "output format: table|json")
+	rootCmd.Flags().IntP("workers", "w", 8, "concurrent git operations")
+	rootCmd.Flags().StringArrayP("ignore", "i", scanner.DefaultIgnorePatterns(), "glob patterns to ignore")
 }
 
 func runScan(cmd *cobra.Command, args []string) error {
+	cfg := scanConfig{
+		roots:      mustGetStringArray(cmd, "root"),
+		filter:     mustGetString(cmd, "filter"),
+		outputFmt:  mustGetString(cmd, "output"),
+		workers:    mustGetInt(cmd, "workers"),
+		ignorePats: mustGetStringArray(cmd, "ignore"),
+	}
+	return doScan(cfg)
+}
+
+func mustGetString(cmd *cobra.Command, name string) string {
+	v, _ := cmd.Flags().GetString(name)
+	return v
+}
+
+func mustGetInt(cmd *cobra.Command, name string) int {
+	v, _ := cmd.Flags().GetInt(name)
+	return v
+}
+
+func mustGetStringArray(cmd *cobra.Command, name string) []string {
+	v, _ := cmd.Flags().GetStringArray(name)
+	return v
+}
+
+func doScan(cfg scanConfig) error {
 	// find repos
-	s := scanner.New(ignorePats)
-	repoPaths, warnings := s.FindRepos(roots)
+	s := scanner.New(cfg.ignorePats)
+	repoPaths, warnings := s.FindRepos(cfg.roots)
 
 	// check repo status concurrently
-	statuses := checkRepos(repoPaths, workers)
+	statuses := checkRepos(repoPaths, cfg.workers)
 
 	// filter
-	filtered := filterRepos(statuses, filter)
+	filtered := filterRepos(statuses, cfg.filter)
 
 	// build result
 	result := report.ScanResult{
@@ -69,7 +96,7 @@ func runScan(cmd *cobra.Command, args []string) error {
 	}
 
 	// output
-	switch outputFmt {
+	switch cfg.outputFmt {
 	case "json":
 		return output.JSON(result)
 	default:
