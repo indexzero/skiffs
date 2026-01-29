@@ -4,6 +4,7 @@ package cmd
 import (
 	"os"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -120,9 +121,28 @@ func checkRepos(paths []string, maxWorkers int) []report.RepoStatus {
 
 func checkRepo(path string) report.RepoStatus {
 	name := git.GetRepoName(path)
-	branch, _ := git.GetBranch(path)
-	files, _ := git.GetStatus(path)
-	ahead, behind, noUpstream, _ := git.GetUpstream(path)
+
+	var errs []string
+
+	branch, err := git.GetBranch(path)
+	if err != nil {
+		errs = append(errs, "branch: "+err.Error())
+	}
+
+	files, err := git.GetStatus(path)
+	if err != nil {
+		errs = append(errs, "status: "+err.Error())
+	}
+
+	ahead, behind, noUpstream, err := git.GetUpstream(path)
+	if err != nil {
+		errs = append(errs, "upstream: "+err.Error())
+	}
+
+	var errStr string
+	if len(errs) > 0 {
+		errStr = strings.Join(errs, "; ")
+	}
 
 	return report.RepoStatus{
 		Path:       path,
@@ -132,6 +152,7 @@ func checkRepo(path string) report.RepoStatus {
 		Ahead:      ahead,
 		Behind:     behind,
 		NoUpstream: noUpstream,
+		Error:      errStr,
 	}
 }
 

@@ -24,6 +24,7 @@ type RepoStatus struct {
 	Ahead      int        `json:"ahead"`
 	Behind     int        `json:"behind"`
 	NoUpstream bool       `json:"noUpstream,omitempty"`
+	Error      string     `json:"error,omitempty"`
 }
 
 // IsDirty returns true if the repo has uncommitted changes or is ahead/behind.

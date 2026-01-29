@@ -72,6 +72,11 @@ func printRepoRow(r report.RepoStatus) {
 
 	var status strings.Builder
 
+	// show error indicator if present
+	if r.Error != "" {
+		status.WriteString(red("✗ "))
+	}
+
 	// uncommitted count
 	count := r.Files.Count()
 	if count > 0 {
@@ -105,21 +110,24 @@ func printRepoRow(r report.RepoStatus) {
 }
 
 func printDetails(repos []report.RepoStatus) {
-	var dirty []report.RepoStatus
+	var detailed []report.RepoStatus
 	for _, r := range repos {
-		if r.Files.Count() > 0 {
-			dirty = append(dirty, r)
+		if r.Files.Count() > 0 || r.Error != "" {
+			detailed = append(detailed, r)
 		}
 	}
 
-	if len(dirty) == 0 {
+	if len(detailed) == 0 {
 		return
 	}
 
 	fmt.Printf("\n%s\n", cyan("Details:"))
-	for _, r := range dirty {
+	for _, r := range detailed {
 		fmt.Printf("\n%s %s\n", magenta("repo:"), r.Name)
 		fmt.Printf("%s %s\n", magenta("path:"), r.Path)
+		if r.Error != "" {
+			fmt.Printf("  %s\n", red("error: %s", r.Error))
+		}
 		for _, f := range r.Files.Modified {
 			fmt.Printf("  %s\n", gray("M %s", f))
 		}
