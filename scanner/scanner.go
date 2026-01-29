@@ -2,6 +2,7 @@
 package scanner
 
 import (
+	"context"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -31,12 +32,16 @@ func New(ignorePatterns []string) *Scanner {
 }
 
 // FindRepos walks the given roots and returns paths to git repositories.
-func (s *Scanner) FindRepos(roots []string) ([]string, []string) {
+func (s *Scanner) FindRepos(ctx context.Context, roots []string) ([]string, []string) {
 	var repos []string
 	var warnings []string
 	visited := make(map[string]bool)
 
 	for _, root := range roots {
+		if ctx.Err() != nil {
+			break
+		}
+
 		root = os.ExpandEnv(root)
 		root, err := filepath.Abs(root)
 		if err != nil {
@@ -45,6 +50,10 @@ func (s *Scanner) FindRepos(roots []string) ([]string, []string) {
 		}
 
 		err = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+
 			if err != nil {
 				warnings = append(warnings, err.Error())
 				return nil
@@ -69,7 +78,7 @@ func (s *Scanner) FindRepos(roots []string) ([]string, []string) {
 			}
 			return nil
 		})
-		if err != nil {
+		if err != nil && err != context.Canceled && err != context.DeadlineExceeded {
 			warnings = append(warnings, err.Error())
 		}
 	}

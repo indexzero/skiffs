@@ -3,6 +3,7 @@ package git
 
 import (
 	"bytes"
+	"context"
 	"net/url"
 	"os/exec"
 	"path"
@@ -14,8 +15,8 @@ import (
 )
 
 // runGit executes a git command in the specified directory.
-func runGit(dir string, args ...string) (string, error) {
-	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+func runGit(ctx context.Context, dir string, args ...string) (string, error) {
+	cmd := exec.CommandContext(ctx, "git", append([]string{"-C", dir}, args...)...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -27,15 +28,15 @@ func runGit(dir string, args ...string) (string, error) {
 }
 
 // GetBranch returns the current branch name.
-func GetBranch(dir string) (string, error) {
-	out, err := runGit(dir, "branch", "--show-current")
+func GetBranch(ctx context.Context, dir string) (string, error) {
+	out, err := runGit(ctx, dir, "branch", "--show-current")
 	if err != nil {
 		return "", err
 	}
 	branch := strings.TrimSpace(out)
 	if branch == "" {
 		// detached HEAD
-		out, err = runGit(dir, "rev-parse", "--short", "HEAD")
+		out, err = runGit(ctx, dir, "rev-parse", "--short", "HEAD")
 		if err != nil {
 			return "HEAD", nil
 		}
@@ -45,8 +46,8 @@ func GetBranch(dir string) (string, error) {
 }
 
 // GetStatus parses git status and returns categorized file lists.
-func GetStatus(dir string) (report.FileStatus, error) {
-	out, err := runGit(dir, "status", "--porcelain=v1")
+func GetStatus(ctx context.Context, dir string) (report.FileStatus, error) {
+	out, err := runGit(ctx, dir, "status", "--porcelain=v1")
 	if err != nil {
 		return report.FileStatus{}, err
 	}
@@ -82,8 +83,8 @@ func GetStatus(dir string) (report.FileStatus, error) {
 
 // GetUpstream returns ahead/behind counts relative to upstream.
 // Returns noUpstream=true if no upstream is configured.
-func GetUpstream(dir string) (ahead, behind int, noUpstream bool, err error) {
-	out, err := runGit(dir, "rev-list", "--left-right", "--count", "@{u}...HEAD")
+func GetUpstream(ctx context.Context, dir string) (ahead, behind int, noUpstream bool, err error) {
+	out, err := runGit(ctx, dir, "rev-list", "--left-right", "--count", "@{u}...HEAD")
 	if err != nil {
 		// no upstream configured
 		return 0, 0, true, nil
@@ -100,9 +101,9 @@ func GetUpstream(dir string) (ahead, behind int, noUpstream bool, err error) {
 }
 
 // GetRepoName extracts the repository name from remote URL or directory.
-func GetRepoName(dir string) string {
+func GetRepoName(ctx context.Context, dir string) string {
 	// try origin remote first
-	out, err := runGit(dir, "remote", "get-url", "origin")
+	out, err := runGit(ctx, dir, "remote", "get-url", "origin")
 	if err == nil {
 		if name := parseRemoteURL(strings.TrimSpace(out)); name != "" {
 			return name
@@ -110,11 +111,11 @@ func GetRepoName(dir string) string {
 	}
 
 	// try first available remote
-	out, err = runGit(dir, "remote")
+	out, err = runGit(ctx, dir, "remote")
 	if err == nil {
 		remotes := strings.Fields(out)
 		for _, remote := range remotes {
-			out, err = runGit(dir, "remote", "get-url", remote)
+			out, err = runGit(ctx, dir, "remote", "get-url", remote)
 			if err == nil {
 				if name := parseRemoteURL(strings.TrimSpace(out)); name != "" {
 					return name

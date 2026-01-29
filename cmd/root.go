@@ -2,6 +2,7 @@
 package cmd
 
 import (
+	"context"
 	"os"
 	"sort"
 	"strings"
@@ -54,7 +55,7 @@ func runScan(cmd *cobra.Command, args []string) error {
 		workers:    mustGetInt(cmd, "workers"),
 		ignorePats: mustGetStringArray(cmd, "ignore"),
 	}
-	return doScan(cfg)
+	return doScan(cmd.Context(), cfg)
 }
 
 func mustGetString(cmd *cobra.Command, name string) string {
@@ -72,13 +73,13 @@ func mustGetStringArray(cmd *cobra.Command, name string) []string {
 	return v
 }
 
-func doScan(cfg scanConfig) error {
+func doScan(ctx context.Context, cfg scanConfig) error {
 	// find repos
 	s := scanner.New(cfg.ignorePats)
-	repoPaths, warnings := s.FindRepos(cfg.roots)
+	repoPaths, warnings := s.FindRepos(ctx, cfg.roots)
 
 	// check repo status concurrently
-	statuses := checkRepos(repoPaths, cfg.workers)
+	statuses := checkRepos(ctx, repoPaths, cfg.workers)
 
 	// filter
 	filtered := filterRepos(statuses, cfg.filter)
@@ -105,7 +106,7 @@ func doScan(cfg scanConfig) error {
 	return nil
 }
 
-func checkRepos(paths []string, maxWorkers int) []report.RepoStatus {
+func checkRepos(ctx context.Context, paths []string, maxWorkers int) []report.RepoStatus {
 	if maxWorkers < 1 {
 		maxWorkers = 1
 	}
@@ -119,7 +120,7 @@ func checkRepos(paths []string, maxWorkers int) []report.RepoStatus {
 		go func() {
 			defer wg.Done()
 			for path := range jobs {
-				results <- checkRepo(path)
+				results <- checkRepo(ctx, path)
 			}
 		}()
 	}
@@ -146,22 +147,22 @@ func checkRepos(paths []string, maxWorkers int) []report.RepoStatus {
 	return statuses
 }
 
-func checkRepo(path string) report.RepoStatus {
-	name := git.GetRepoName(path)
+func checkRepo(ctx context.Context, path string) report.RepoStatus {
+	name := git.GetRepoName(ctx, path)
 
 	var errs []string
 
-	branch, err := git.GetBranch(path)
+	branch, err := git.GetBranch(ctx, path)
 	if err != nil {
 		errs = append(errs, "branch: "+err.Error())
 	}
 
-	files, err := git.GetStatus(path)
+	files, err := git.GetStatus(ctx, path)
 	if err != nil {
 		errs = append(errs, "status: "+err.Error())
 	}
 
-	ahead, behind, noUpstream, err := git.GetUpstream(path)
+	ahead, behind, noUpstream, err := git.GetUpstream(ctx, path)
 	if err != nil {
 		errs = append(errs, "upstream: "+err.Error())
 	}

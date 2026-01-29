@@ -1,6 +1,7 @@
 package scanner
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -22,7 +23,7 @@ func TestFindRepos_FindsGitDirs(t *testing.T) {
 	}
 
 	s := New(nil)
-	repos, warnings := s.FindRepos([]string{root})
+	repos, warnings := s.FindRepos(context.Background(), []string{root})
 
 	if len(warnings) != 0 {
 		t.Errorf("unexpected warnings: %v", warnings)
@@ -48,7 +49,7 @@ func TestFindRepos_RespectsIgnorePatterns(t *testing.T) {
 	}
 
 	s := New([]string{"**/node_modules/**"})
-	repos, _ := s.FindRepos([]string{root})
+	repos, _ := s.FindRepos(context.Background(), []string{root})
 
 	if len(repos) != 1 {
 		t.Errorf("expected 1 repo, got %d: %v", len(repos), repos)
