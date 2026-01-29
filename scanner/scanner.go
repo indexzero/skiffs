@@ -108,27 +108,24 @@ func isGitRepo(path string) bool {
 // Patterns should use glob syntax (e.g., "**/node_modules/**").
 func (s *Scanner) shouldIgnore(path string) bool {
 	normalizedPath := filepath.ToSlash(path)
-	for _, pattern := range s.ignorePatterns {
-		matched, _ := doublestar.PathMatch(pattern, normalizedPath)
-		if matched {
+	for _, p := range s.ignorePatterns {
+		if matched, _ := doublestar.PathMatch(p, normalizedPath); matched {
 			return true
 		}
 	}
 	return false
 }
 
-// DefaultIgnorePatterns returns sensible defaults for common non-repo directories.
-func DefaultIgnorePatterns() []string {
-	return []string{
-		"**/node_modules/**",
-		"**/vendor/**",
-		"**/.venv/**",
-		"**/venv/**",
-		"**/.cache/**",
-		"**/.local/**",
-		"**/build/**",
-		"**/dist/**",
-		"**/.idea/**",
-		"**/.vscode/**",
-	}
+// DefaultIgnorePatterns provides sensible defaults for common non-repo directories.
+var DefaultIgnorePatterns = []string{
+	"**/node_modules/**",
+	"**/vendor/**",
+	"**/.venv/**",
+	"**/venv/**",
+	"**/.cache/**",
+	"**/.local/**",
+	"**/build/**",
+	"**/dist/**",
+	"**/.idea/**",
+	"**/.vscode/**",
 }

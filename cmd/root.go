@@ -44,7 +44,7 @@ func init() {
 	rootCmd.Flags().StringP("filter", "f", "dirty", "filter: all|dirty|uncommitted|unpushed|unpulled")
 	rootCmd.Flags().StringP("output", "o", "table", "output format: table|json")
 	rootCmd.Flags().IntP("workers", "w", 8, "concurrent git operations")
-	rootCmd.Flags().StringArrayP("ignore", "i", scanner.DefaultIgnorePatterns(), "glob patterns to ignore")
+	rootCmd.Flags().StringArrayP("ignore", "i", scanner.DefaultIgnorePatterns, "glob patterns to ignore")
 }
 
 func runScan(cmd *cobra.Command, args []string) error {

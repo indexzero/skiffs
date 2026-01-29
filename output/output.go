@@ -32,12 +32,10 @@ var (
 
 // Table prints the scan result as a formatted table.
 func Table(r report.ScanResult) {
-	// print warnings
 	for _, w := range r.Warnings {
 		fmt.Fprintf(os.Stderr, "%s %s\n", Yellow("warning:"), w)
 	}
 
-	// header
 	fmt.Println()
 	fmt.Printf("%s\n", Bold("Scan Report"))
 	fmt.Printf("%s %s\n", Dim("generated:"), Gray(r.GeneratedAt.Format("2006-01-02 15:04:05")))
@@ -51,19 +49,16 @@ func Table(r report.ScanResult) {
 		return
 	}
 
-	// table header
 	fmt.Printf("%s %s %s\n",
 		Cyan("%-*s", nameWidth, "REPO"),
 		Cyan("%-*s", branchWidth, "BRANCH"),
 		Cyan("STATUS"))
 	fmt.Println(strings.Repeat("─", nameWidth+branchWidth+20))
 
-	// rows
 	for _, repo := range r.Repos {
 		printRepoRow(repo)
 	}
 
-	// details section for repos with uncommitted files
 	printDetails(r.Repos)
 }
 
