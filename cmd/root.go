@@ -157,7 +157,7 @@ func checkRepo(ctx context.Context, path string) report.RepoStatus {
 		errs = append(errs, "branch: "+err.Error())
 	}
 
-	files, err := git.GetStatus(ctx, path)
+	gitFiles, err := git.GetStatus(ctx, path)
 	if err != nil {
 		errs = append(errs, "status: "+err.Error())
 	}
@@ -173,10 +173,14 @@ func checkRepo(ctx context.Context, path string) report.RepoStatus {
 	}
 
 	return report.RepoStatus{
-		Path:       path,
-		Name:       name,
-		Branch:     branch,
-		Files:      files,
+		Path:   path,
+		Name:   name,
+		Branch: branch,
+		Files: report.FileStatus{
+			Modified:  gitFiles.Modified,
+			Untracked: gitFiles.Untracked,
+			Staged:    gitFiles.Staged,
+		},
 		Ahead:      ahead,
 		Behind:     behind,
 		NoUpstream: noUpstream,

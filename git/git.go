@@ -10,9 +10,14 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-
-	"github.com/indexzero/skiffscan/report"
 )
+
+// FileStatus categorizes changed files by their git status.
+type FileStatus struct {
+	Modified  []string
+	Untracked []string
+	Staged    []string
+}
 
 // runGit executes a git command in the specified directory.
 func runGit(ctx context.Context, dir string, args ...string) (string, error) {
@@ -46,13 +51,13 @@ func GetBranch(ctx context.Context, dir string) (string, error) {
 }
 
 // GetStatus parses git status and returns categorized file lists.
-func GetStatus(ctx context.Context, dir string) (report.FileStatus, error) {
+func GetStatus(ctx context.Context, dir string) (FileStatus, error) {
 	out, err := runGit(ctx, dir, "status", "--porcelain=v1")
 	if err != nil {
-		return report.FileStatus{}, err
+		return FileStatus{}, err
 	}
 
-	var fs report.FileStatus
+	var fs FileStatus
 	lines := strings.Split(out, "\n")
 	for _, line := range lines {
 		if len(line) < 3 {
