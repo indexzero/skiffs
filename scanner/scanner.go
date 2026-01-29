@@ -105,19 +105,13 @@ func isGitRepo(path string) bool {
 }
 
 // shouldIgnore checks if the path matches any ignore pattern.
+// Patterns should use glob syntax (e.g., "**/node_modules/**").
 func (s *Scanner) shouldIgnore(path string) bool {
 	normalizedPath := filepath.ToSlash(path)
 	for _, pattern := range s.ignorePatterns {
 		matched, _ := doublestar.PathMatch(pattern, normalizedPath)
 		if matched {
 			return true
-		}
-		// also try matching against basename for simple patterns
-		if !strings.Contains(pattern, "/") {
-			matched, _ = doublestar.PathMatch("**/"+pattern+"/**", normalizedPath)
-			if matched {
-				return true
-			}
 		}
 	}
 	return false
