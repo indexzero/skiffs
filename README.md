@@ -41,7 +41,43 @@ Table output shows repo name, branch, and status indicators:
 - Commits ahead of upstream (unpushed)
 - Commits behind upstream (unpulled)
 
-JSON output includes full file lists for each status category.
+JSON output includes full file lists for each status category:
+- Modified files
+- Untracked files
+- Staged files
+
+## Comparing Scans Over Time
+
+Save scans as JSON and compare them later:
+
+```sh
+# save today's scan
+skiffscan -r ~/Code -o json > ~/.cache/skiffscan/$(date +%Y-%m-%d).json
+
+# compare to yesterday
+skiffscan diff ~/.cache/skiffscan/yesterday.json ~/.cache/skiffscan/today.json
+```
+
+The diff command shows:
+- Added and removed repositories
+- Repos that became dirty or were cleaned
+- Changes in uncommitted/ahead/behind counts
+
+Example output:
+```
+Diff Report
+old: yesterday.json
+new: today.json
+
+cleaned: 2  dirtied: 1  added: 0  removed: 0
+
+Changed:
+  myproject
+    → cleaned
+  another-repo
+    → dirtied
+    uncommitted: +3
+```
 
 ## License
 
