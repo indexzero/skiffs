@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/indexzero/skiffs/output"
+	"github.com/indexzero/skiffs/internal/output"
 	"github.com/indexzero/skiffs/report"
 	"github.com/spf13/cobra"
 )

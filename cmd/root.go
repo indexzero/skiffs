@@ -9,10 +9,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/indexzero/skiffs/git"
-	"github.com/indexzero/skiffs/output"
+	"github.com/indexzero/skiffs/internal/git"
+	"github.com/indexzero/skiffs/internal/output"
+	"github.com/indexzero/skiffs/internal/scanner"
 	"github.com/indexzero/skiffs/report"
-	"github.com/indexzero/skiffs/scanner"
 	"github.com/spf13/cobra"
 )
 
