@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/fatih/color"
+	"github.com/indexzero/skiffscan/output"
 	"github.com/indexzero/skiffscan/report"
 	"github.com/spf13/cobra"
 )
@@ -68,36 +68,27 @@ func outputDiffJSON(diff report.DiffResult) error {
 	return enc.Encode(diff)
 }
 
-var (
-	diffBold   = color.New(color.Bold).SprintfFunc()
-	diffRed    = color.New(color.FgRed).SprintfFunc()
-	diffGreen  = color.New(color.FgGreen).SprintfFunc()
-	diffYellow = color.New(color.FgYellow).SprintfFunc()
-	diffCyan   = color.New(color.FgCyan).SprintfFunc()
-	diffGray   = color.New(color.FgHiBlack).SprintfFunc()
-)
-
 func outputDiffTable(diff report.DiffResult) {
 	fmt.Println()
-	fmt.Printf("%s\n", diffBold("Diff Report"))
-	fmt.Printf("%s %s\n", diffGray("old:"), diff.OldScan)
-	fmt.Printf("%s %s\n", diffGray("new:"), diff.NewScan)
+	fmt.Printf("%s\n", output.Bold("Diff Report"))
+	fmt.Printf("%s %s\n", output.Gray("old:"), diff.OldScan)
+	fmt.Printf("%s %s\n", output.Gray("new:"), diff.NewScan)
 	fmt.Println()
 
 	// summary
 	fmt.Printf("cleaned: %s  dirtied: %s  added: %s  removed: %s\n\n",
-		diffGreen("%d", diff.Summary.ReposCleaned),
-		diffRed("%d", diff.Summary.ReposDirtied),
-		diffCyan("%d", diff.Summary.ReposAdded),
-		diffYellow("%d", diff.Summary.ReposRemoved))
+		output.Green("%d", diff.Summary.ReposCleaned),
+		output.Red("%d", diff.Summary.ReposDirtied),
+		output.Cyan("%d", diff.Summary.ReposAdded),
+		output.Yellow("%d", diff.Summary.ReposRemoved))
 
 	// added repos
 	if len(diff.Added) > 0 {
-		fmt.Printf("%s\n", diffCyan("Added:"))
+		fmt.Printf("%s\n", output.Cyan("Added:"))
 		for _, d := range diff.Added {
 			fmt.Printf("  + %s", d.Name)
 			if d.Now != nil && d.Now.Dirty {
-				fmt.Printf(" %s", diffRed("(dirty)"))
+				fmt.Printf(" %s", output.Red("(dirty)"))
 			}
 			fmt.Println()
 		}
@@ -106,7 +97,7 @@ func outputDiffTable(diff report.DiffResult) {
 
 	// removed repos
 	if len(diff.Removed) > 0 {
-		fmt.Printf("%s\n", diffYellow("Removed:"))
+		fmt.Printf("%s\n", output.Yellow("Removed:"))
 		for _, d := range diff.Removed {
 			fmt.Printf("  - %s\n", d.Name)
 		}
@@ -115,15 +106,15 @@ func outputDiffTable(diff report.DiffResult) {
 
 	// changed repos
 	if len(diff.Changed) > 0 {
-		fmt.Printf("%s\n", diffBold("Changed:"))
+		fmt.Printf("%s\n", output.Bold("Changed:"))
 		for _, d := range diff.Changed {
 			fmt.Printf("  %s\n", d.Name)
 			if d.Was != nil && d.Now != nil {
 				// show transitions
 				if d.Was.Dirty && !d.Now.Dirty {
-					fmt.Printf("    %s\n", diffGreen("→ cleaned"))
+					fmt.Printf("    %s\n", output.Green("→ cleaned"))
 				} else if !d.Was.Dirty && d.Now.Dirty {
-					fmt.Printf("    %s\n", diffRed("→ dirtied"))
+					fmt.Printf("    %s\n", output.Red("→ dirtied"))
 				}
 
 				// show numeric deltas
