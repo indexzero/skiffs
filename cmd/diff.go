@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/indexzero/skiffscan/output"
-	"github.com/indexzero/skiffscan/report"
+	"github.com/indexzero/skiffs/output"
+	"github.com/indexzero/skiffs/report"
 	"github.com/spf13/cobra"
 )
 

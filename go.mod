@@ -1,4 +1,4 @@
-module github.com/indexzero/skiffscan
+module github.com/indexzero/skiffs
 
 go 1.24.1
 

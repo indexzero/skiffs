@@ -1,27 +1,27 @@
-# skiffscan
+# skiffs
 
 Scan directories for Git repositories and report their status.
 
 ## Install
 
 ```sh
-go install github.com/indexzero/skiffscan@latest
+go install github.com/indexzero/skiffs@latest
 ```
 
 ## Usage
 
 ```sh
 # scan current directory
-skiffscan
+skiffs
 
 # scan specific roots
-skiffscan -r ~/Code -r ~/work
+skiffs -r ~/Code -r ~/work
 
 # show all repos (not just dirty)
-skiffscan -f all
+skiffs -f all
 
 # output as JSON
-skiffscan -o json
+skiffs -o json
 ```
 
 ## Flags
@@ -52,10 +52,10 @@ Save scans as JSON and compare them later:
 
 ```sh
 # save today's scan
-skiffscan -r ~/Code -o json > ~/.cache/skiffscan/$(date +%Y-%m-%d).json
+skiffs -r ~/Code -o json > ~/.cache/skiffs/$(date +%Y-%m-%d).json
 
 # compare to yesterday
-skiffscan diff ~/.cache/skiffscan/yesterday.json ~/.cache/skiffscan/today.json
+skiffs diff ~/.cache/skiffs/yesterday.json ~/.cache/skiffs/today.json
 ```
 
 The diff command shows:

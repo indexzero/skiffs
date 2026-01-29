@@ -1,6 +1,6 @@
-# Adding a TUI to SkiffScan
+# Adding a TUI to Skiffs
 
-SkiffScan's architecture makes it straightforward to add an interactive terminal UI. The packages are importable, the data model is clean, and there's no existing TUI to work around.
+Skiffs's architecture makes it straightforward to add an interactive terminal UI. The packages are importable, the data model is clean, and there's no existing TUI to work around.
 
 ## Prerequisites
 
@@ -20,7 +20,7 @@ import (
 
     "github.com/charmbracelet/bubbles/table"
     tea "github.com/charmbracelet/bubbletea"
-    "github.com/indexzero/skiffscan/report"
+    "github.com/indexzero/skiffs/report"
 )
 
 type Model struct {
@@ -76,7 +76,7 @@ func formatStatus(r report.RepoStatus) string {
 Add to `cmd/root.go`:
 
 ```go
-import "github.com/indexzero/skiffscan/tui"
+import "github.com/indexzero/skiffs/tui"
 
 // in runScan(), add case:
 case "interactive":
@@ -86,22 +86,22 @@ case "interactive":
     }
 ```
 
-## Using SkiffScan as a Library
+## Using Skiffs as a Library
 
-You can also build a completely separate TUI that imports skiffscan:
+You can also build a completely separate TUI that imports skiffs:
 
 ```go
 package main
 
 import (
-    "github.com/indexzero/skiffscan/git"
-    "github.com/indexzero/skiffscan/report"
-    "github.com/indexzero/skiffscan/scanner"
+    "github.com/indexzero/skiffs/git"
+    "github.com/indexzero/skiffs/report"
+    "github.com/indexzero/skiffs/scanner"
     tea "github.com/charmbracelet/bubbletea"
 )
 
 func main() {
-    // Use skiffscan's scanner
+    // Use skiffs's scanner
     s := scanner.New(nil)
     paths, _ := s.FindRepos([]string{"~/Code"})
 

@@ -9,7 +9,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/fatih/color"
-	"github.com/indexzero/skiffscan/report"
+	"github.com/indexzero/skiffs/report"
 )
 
 const (

@@ -1,4 +1,4 @@
-// Package cmd provides the CLI commands for skiffscan.
+// Package cmd provides the CLI commands for skiffs.
 package cmd
 
 import (
@@ -9,10 +9,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/indexzero/skiffscan/git"
-	"github.com/indexzero/skiffscan/output"
-	"github.com/indexzero/skiffscan/report"
-	"github.com/indexzero/skiffscan/scanner"
+	"github.com/indexzero/skiffs/git"
+	"github.com/indexzero/skiffs/output"
+	"github.com/indexzero/skiffs/report"
+	"github.com/indexzero/skiffs/scanner"
 	"github.com/spf13/cobra"
 )
 
@@ -26,9 +26,9 @@ type scanConfig struct {
 }
 
 var rootCmd = &cobra.Command{
-	Use:   "skiffscan",
+	Use:   "skiffs",
 	Short: "Scan directories for git repositories and report status",
-	Long:  "skiffscan walks directory trees to find git repositories and reports their status: uncommitted files, unpushed commits, and unpulled changes.",
+	Long:  "skiffs walks directory trees to find git repositories and reports their status: uncommitted files, unpushed commits, and unpulled changes.",
 	RunE:  runScan,
 }
 

@@ -3,7 +3,7 @@ package cmd
 import (
 	"testing"
 
-	"github.com/indexzero/skiffscan/report"
+	"github.com/indexzero/skiffs/report"
 )
 
 func TestFilterRepos(t *testing.T) {
