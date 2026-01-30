@@ -11,14 +11,13 @@ import (
 	"github.com/bmatcuk/doublestar/v4"
 )
 
-// Scanner finds git repositories.
+// Scanner finds git repositories. The zero value is usable with DefaultIgnorePatterns.
 type Scanner struct {
-	ignorePatterns []string
+	IgnorePatterns []string // if nil, uses DefaultIgnorePatterns
 }
 
 // New creates a scanner with the given ignore patterns.
 func New(ignorePatterns []string) *Scanner {
-	// normalize patterns
 	var patterns []string
 	for _, p := range ignorePatterns {
 		p = strings.TrimSpace(p)
@@ -28,7 +27,14 @@ func New(ignorePatterns []string) *Scanner {
 		p = filepath.ToSlash(p)
 		patterns = append(patterns, p)
 	}
-	return &Scanner{ignorePatterns: patterns}
+	return &Scanner{IgnorePatterns: patterns}
+}
+
+func (s *Scanner) patterns() []string {
+	if s.IgnorePatterns == nil {
+		return DefaultIgnorePatterns
+	}
+	return s.IgnorePatterns
 }
 
 // FindRepos walks the given roots and returns paths to git repositories.
@@ -104,11 +110,9 @@ func isGitRepo(path string) bool {
 	return strings.Contains(string(data), "gitdir:")
 }
 
-// shouldIgnore checks if the path matches any ignore pattern.
-// Patterns should use glob syntax (e.g., "**/node_modules/**").
 func (s *Scanner) shouldIgnore(path string) bool {
 	normalizedPath := filepath.ToSlash(path)
-	for _, p := range s.ignorePatterns {
+	for _, p := range s.patterns() {
 		if matched, _ := doublestar.PathMatch(p, normalizedPath); matched {
 			return true
 		}
