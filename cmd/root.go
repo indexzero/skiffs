@@ -74,17 +74,11 @@ func mustGetStringArray(cmd *cobra.Command, name string) []string {
 }
 
 func doScan(ctx context.Context, cfg scanConfig) error {
-	// find repos
 	s := scanner.New(cfg.ignorePats)
 	repoPaths, warnings := s.FindRepos(ctx, cfg.roots)
-
-	// check repo status concurrently
 	statuses := checkRepos(ctx, repoPaths, cfg.workers)
-
-	// filter
 	filtered := filterRepos(statuses, cfg.filter)
 
-	// build result
 	result := report.ScanResult{
 		GeneratedAt: time.Now(),
 		Repos:       filtered,
@@ -145,44 +139,58 @@ func checkRepos(ctx context.Context, paths []string, maxWorkers int) []report.Re
 	return statuses
 }
 
+type repoChecker struct {
+	ctx  context.Context
+	path string
+	errs []string
+}
+
+func (c *repoChecker) branch() string {
+	b, err := git.GetBranch(c.ctx, c.path)
+	if err != nil {
+		c.errs = append(c.errs, "branch: "+err.Error())
+	}
+	return b
+}
+
+func (c *repoChecker) status() git.FileStatus {
+	s, err := git.GetStatus(c.ctx, c.path)
+	if err != nil {
+		c.errs = append(c.errs, "status: "+err.Error())
+	}
+	return s
+}
+
+func (c *repoChecker) upstream() (ahead, behind int, noUpstream bool) {
+	a, b, nu, err := git.GetUpstream(c.ctx, c.path)
+	if err != nil {
+		c.errs = append(c.errs, "upstream: "+err.Error())
+	}
+	return a, b, nu
+}
+
+func (c *repoChecker) err() string {
+	return strings.Join(c.errs, "; ")
+}
+
 func checkRepo(ctx context.Context, path string) report.RepoStatus {
-	name := git.GetRepoName(ctx, path)
-
-	var errs []string
-
-	branch, err := git.GetBranch(ctx, path)
-	if err != nil {
-		errs = append(errs, "branch: "+err.Error())
-	}
-
-	gitFiles, err := git.GetStatus(ctx, path)
-	if err != nil {
-		errs = append(errs, "status: "+err.Error())
-	}
-
-	ahead, behind, noUpstream, err := git.GetUpstream(ctx, path)
-	if err != nil {
-		errs = append(errs, "upstream: "+err.Error())
-	}
-
-	var errStr string
-	if len(errs) > 0 {
-		errStr = strings.Join(errs, "; ")
-	}
+	c := &repoChecker{ctx: ctx, path: path}
+	files := c.status()
+	ahead, behind, noUpstream := c.upstream()
 
 	return report.RepoStatus{
 		Path:   path,
-		Name:   name,
-		Branch: branch,
+		Name:   git.GetRepoName(ctx, path),
+		Branch: c.branch(),
 		Files: report.FileStatus{
-			Modified:  gitFiles.Modified,
-			Untracked: gitFiles.Untracked,
-			Staged:    gitFiles.Staged,
+			Modified:  files.Modified,
+			Untracked: files.Untracked,
+			Staged:    files.Staged,
 		},
 		Ahead:      ahead,
 		Behind:     behind,
 		NoUpstream: noUpstream,
-		Error:      errStr,
+		Error:      c.err(),
 	}
 }
 
