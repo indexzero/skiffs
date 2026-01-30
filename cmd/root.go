@@ -96,14 +96,12 @@ func doScan(ctx context.Context, cfg scanConfig) error {
 		},
 	}
 
-	// output
 	switch cfg.outputFmt {
 	case "json":
-		return output.JSON(result)
+		return output.JSON(os.Stdout, result)
 	default:
-		output.Table(result)
+		return output.Table(os.Stdout, result)
 	}
-	return nil
 }
 
 func checkRepos(ctx context.Context, paths []string, maxWorkers int) []report.RepoStatus {

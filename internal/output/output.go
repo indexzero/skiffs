@@ -4,6 +4,7 @@ package output
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"unicode/utf8"
@@ -30,50 +31,48 @@ var (
 	Magenta = color.New(color.FgMagenta, color.Bold).SprintfFunc()
 )
 
-// Table prints the scan result as a formatted table.
-func Table(r report.ScanResult) {
-	for _, w := range r.Warnings {
-		fmt.Fprintf(os.Stderr, "%s %s\n", Yellow("warning:"), w)
+// Table writes the scan result as a formatted table.
+func Table(w io.Writer, r report.ScanResult) error {
+	for _, warn := range r.Warnings {
+		fmt.Fprintf(os.Stderr, "%s %s\n", Yellow("warning:"), warn)
 	}
 
-	fmt.Println()
-	fmt.Printf("%s\n", Bold("Scan Report"))
-	fmt.Printf("%s %s\n", Dim("generated:"), Gray(r.GeneratedAt.Format("2006-01-02 15:04:05")))
-	fmt.Printf("repos: %s  dirty: %s  clean: %s\n\n",
+	fmt.Fprintln(w)
+	fmt.Fprintf(w, "%s\n", Bold("Scan Report"))
+	fmt.Fprintf(w, "%s %s\n", Dim("generated:"), Gray(r.GeneratedAt.Format("2006-01-02 15:04:05")))
+	fmt.Fprintf(w, "repos: %s  dirty: %s  clean: %s\n\n",
 		Bold("%d", r.Summary.Total),
 		colorCount(r.Summary.Dirty, Red),
 		colorCount(r.Summary.Clean, Green))
 
 	if len(r.Repos) == 0 {
-		fmt.Println(Dim("no repositories found"))
-		return
+		fmt.Fprintln(w, Dim("no repositories found"))
+		return nil
 	}
 
-	fmt.Printf("%s %s %s\n",
+	fmt.Fprintf(w, "%s %s %s\n",
 		Cyan("%-*s", nameWidth, "REPO"),
 		Cyan("%-*s", branchWidth, "BRANCH"),
 		Cyan("STATUS"))
-	fmt.Println(strings.Repeat("─", nameWidth+branchWidth+20))
+	fmt.Fprintln(w, strings.Repeat("─", nameWidth+branchWidth+20))
 
 	for _, repo := range r.Repos {
-		printRepoRow(repo)
+		writeRepoRow(w, repo)
 	}
 
-	printDetails(r.Repos)
+	return writeDetails(w, r.Repos)
 }
 
-func printRepoRow(r report.RepoStatus) {
+func writeRepoRow(w io.Writer, r report.RepoStatus) {
 	name := truncate(r.Name, nameWidth)
 	branch := truncate(r.Branch, branchWidth)
 
 	var status strings.Builder
 
-	// show error indicator if present
 	if r.Error != "" {
 		status.WriteString(Red("✗ "))
 	}
 
-	// uncommitted count
 	count := r.Files.Count()
 	if count > 0 {
 		status.WriteString(Red("●%d ", count))
@@ -81,7 +80,6 @@ func printRepoRow(r report.RepoStatus) {
 		status.WriteString(Gray("○0 "))
 	}
 
-	// ahead
 	if r.Ahead > 0 {
 		status.WriteString(Green("↑%d ", r.Ahead))
 	} else if r.NoUpstream {
@@ -90,7 +88,6 @@ func printRepoRow(r report.RepoStatus) {
 		status.WriteString(Gray("↑0 "))
 	}
 
-	// behind
 	if r.Behind > 0 {
 		status.WriteString(Green("↓%d", r.Behind))
 	} else if r.NoUpstream {
@@ -99,13 +96,13 @@ func printRepoRow(r report.RepoStatus) {
 		status.WriteString(Gray("↓0"))
 	}
 
-	fmt.Printf("%-*s %s %s\n",
+	fmt.Fprintf(w, "%-*s %s %s\n",
 		nameWidth, name,
 		Blue("%-*s", branchWidth, branch),
 		status.String())
 }
 
-func printDetails(repos []report.RepoStatus) {
+func writeDetails(w io.Writer, repos []report.RepoStatus) error {
 	var detailed []report.RepoStatus
 	for _, r := range repos {
 		if r.Files.Count() > 0 || r.Error != "" {
@@ -114,31 +111,32 @@ func printDetails(repos []report.RepoStatus) {
 	}
 
 	if len(detailed) == 0 {
-		return
+		return nil
 	}
 
-	fmt.Printf("\n%s\n", Cyan("Details:"))
+	fmt.Fprintf(w, "\n%s\n", Cyan("Details:"))
 	for _, r := range detailed {
-		fmt.Printf("\n%s %s\n", Magenta("repo:"), r.Name)
-		fmt.Printf("%s %s\n", Magenta("path:"), r.Path)
+		fmt.Fprintf(w, "\n%s %s\n", Magenta("repo:"), r.Name)
+		fmt.Fprintf(w, "%s %s\n", Magenta("path:"), r.Path)
 		if r.Error != "" {
-			fmt.Printf("  %s\n", Red("error: %s", r.Error))
+			fmt.Fprintf(w, "  %s\n", Red("error: %s", r.Error))
 		}
 		for _, f := range r.Files.Modified {
-			fmt.Printf("  %s\n", Gray("M %s", f))
+			fmt.Fprintf(w, "  %s\n", Gray("M %s", f))
 		}
 		for _, f := range r.Files.Staged {
-			fmt.Printf("  %s\n", Gray("A %s", f))
+			fmt.Fprintf(w, "  %s\n", Gray("A %s", f))
 		}
 		for _, f := range r.Files.Untracked {
-			fmt.Printf("  %s\n", Gray("? %s", f))
+			fmt.Fprintf(w, "  %s\n", Gray("? %s", f))
 		}
 	}
+	return nil
 }
 
-// JSON prints the scan result as formatted JSON.
-func JSON(r report.ScanResult) error {
-	enc := json.NewEncoder(os.Stdout)
+// JSON writes the scan result as formatted JSON.
+func JSON(w io.Writer, r report.ScanResult) error {
+	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	return enc.Encode(r)
 }
@@ -154,7 +152,7 @@ func truncate(s string, max int) string {
 	return string(runes[:max-3]) + "..."
 }
 
-func colorCount(n int, colorFn func(string, ...interface{}) string) string {
+func colorCount(n int, colorFn func(string, ...any) string) string {
 	if n > 0 {
 		return colorFn("%d", n)
 	}
