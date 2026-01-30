@@ -1,5 +1,9 @@
 # skiffs
 
+A skiff is a small boat—often one you built yourself. Engineers' repos are their skiffs: small, hand-built vessels scattered across the filesystem. This tool helps you check if any are taking on water.
+
+*(The name started as "scdiffs" for "source control diffs," then lost some letters. The boat thing came later, but it stuck.)*
+
 Scan directories for Git repositories and report their status.
 
 ## Install
