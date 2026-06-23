@@ -182,6 +182,15 @@ func checkRepo(ctx context.Context, path string) report.RepoStatus {
 	// zero-valued so the repo renders as a standalone row rather than erroring.
 	commonDir, isWorktree, _ := git.GetWorktree(ctx, path)
 
+	// Divergence from the remote default branch is best-effort too: repos with
+	// no origin/HEAD simply leave these zero.
+	var defaultBranch string
+	var aheadDefault, behindDefault int
+	if base, derr := git.GetDefaultBranch(ctx, path); derr == nil {
+		defaultBranch = base
+		aheadDefault, behindDefault, _ = git.GetDivergence(ctx, path, base)
+	}
+
 	return report.RepoStatus{
 		Path:   path,
 		Name:   git.GetRepoName(ctx, path),
@@ -194,9 +203,12 @@ func checkRepo(ctx context.Context, path string) report.RepoStatus {
 		Ahead:      ahead,
 		Behind:     behind,
 		NoUpstream: noUpstream,
-		Error:      c.err(),
-		CommonDir:  commonDir,
-		IsWorktree: isWorktree,
+		Error:         c.err(),
+		CommonDir:     commonDir,
+		IsWorktree:    isWorktree,
+		DefaultBranch: defaultBranch,
+		AheadDefault:  aheadDefault,
+		BehindDefault: behindDefault,
 	}
 }
 

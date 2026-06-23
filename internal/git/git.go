@@ -109,6 +109,33 @@ func GetUpstream(ctx context.Context, dir string) (ahead, behind int, noUpstream
 	return ahead, behind, false, nil
 }
 
+// GetDefaultBranch returns the remote default ref (e.g. "origin/main")
+// resolved from origin/HEAD, or an error if no origin/HEAD is set.
+func GetDefaultBranch(ctx context.Context, dir string) (string, error) {
+	out, err := runGit(ctx, dir, "rev-parse", "--abbrev-ref", "origin/HEAD")
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(out), nil
+}
+
+// GetDivergence returns how far HEAD is ahead of and behind base, computed as
+// `git rev-list --left-right --count base...HEAD` (left=base→behind,
+// right=HEAD→ahead), matching the convention used by GetUpstream.
+func GetDivergence(ctx context.Context, dir, base string) (ahead, behind int, err error) {
+	out, err := runGit(ctx, dir, "rev-list", "--left-right", "--count", base+"...HEAD")
+	if err != nil {
+		return 0, 0, err
+	}
+	parts := strings.Fields(strings.TrimSpace(out))
+	if len(parts) != 2 {
+		return 0, 0, fmt.Errorf("unexpected rev-list output: %q", out)
+	}
+	behind, _ = strconv.Atoi(parts[0])
+	ahead, _ = strconv.Atoi(parts[1])
+	return ahead, behind, nil
+}
+
 // GetWorktree reports the absolute shared git directory and whether dir is a
 // linked worktree. The common dir (`git rev-parse --git-common-dir`) is shared
 // by every checkout of a repository, so it serves as a grouping key; the
