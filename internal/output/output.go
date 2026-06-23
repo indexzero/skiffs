@@ -149,22 +149,37 @@ func statusString(r report.RepoStatus) string {
 	// "caution".
 	if r.NoUpstream {
 		status.WriteString(Dim("no upstream"))
-		return status.String()
-	}
-
-	if r.Ahead > 0 {
-		status.WriteString(Green("↑%d ", r.Ahead))
 	} else {
-		status.WriteString(Gray("↑0 "))
+		if r.Ahead > 0 {
+			status.WriteString(Green("↑%d ", r.Ahead))
+		} else {
+			status.WriteString(Gray("↑0 "))
+		}
+
+		if r.Behind > 0 {
+			status.WriteString(Green("↓%d", r.Behind))
+		} else {
+			status.WriteString(Gray("↓0"))
+		}
 	}
 
-	if r.Behind > 0 {
-		status.WriteString(Green("↓%d", r.Behind))
-	} else {
-		status.WriteString(Gray("↓0"))
-	}
-
+	status.WriteString(defaultDivergence(r))
 	return status.String()
+}
+
+// defaultDivergence renders a dim, branch-labelled "distance from the default
+// branch" token. It is shown only for branches other than the default itself
+// that have actually diverged, and appears even without an upstream — that is
+// precisely when "how far from main" is the only sync signal available.
+func defaultDivergence(r report.RepoStatus) string {
+	if r.DefaultBranch == "" {
+		return ""
+	}
+	short := strings.TrimPrefix(r.DefaultBranch, "origin/")
+	if r.Branch == short || (r.AheadDefault == 0 && r.BehindDefault == 0) {
+		return ""
+	}
+	return Dim("  [%s ↑%d ↓%d]", short, r.AheadDefault, r.BehindDefault)
 }
 
 func writeDetails(w io.Writer, repos []report.RepoStatus) error {
