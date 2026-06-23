@@ -25,6 +25,15 @@ type RepoStatus struct {
 	Behind     int        `json:"behind"`
 	NoUpstream bool       `json:"noUpstream,omitempty"`
 	Error      string     `json:"error,omitempty"`
+
+	// CommonDir is the absolute path to the shared git directory
+	// (`git rev-parse --git-common-dir`). Every checkout of the same
+	// repository reports the same CommonDir, so it serves as the key for
+	// grouping worktrees of one repo together. Empty if detection failed.
+	CommonDir string `json:"commonDir,omitempty"`
+	// IsWorktree is true for a linked worktree and false for the primary
+	// checkout (the one whose git dir equals CommonDir).
+	IsWorktree bool `json:"isWorktree,omitempty"`
 }
 
 // IsDirty returns true if the repo has uncommitted changes or is ahead/behind.

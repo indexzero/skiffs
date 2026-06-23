@@ -178,6 +178,10 @@ func checkRepo(ctx context.Context, path string) report.RepoStatus {
 	files := c.status()
 	ahead, behind, noUpstream := c.upstream()
 
+	// Worktree linkage is best-effort: detection failures leave the fields
+	// zero-valued so the repo renders as a standalone row rather than erroring.
+	commonDir, isWorktree, _ := git.GetWorktree(ctx, path)
+
 	return report.RepoStatus{
 		Path:   path,
 		Name:   git.GetRepoName(ctx, path),
@@ -191,6 +195,8 @@ func checkRepo(ctx context.Context, path string) report.RepoStatus {
 		Behind:     behind,
 		NoUpstream: noUpstream,
 		Error:      c.err(),
+		CommonDir:  commonDir,
+		IsWorktree: isWorktree,
 	}
 }
 

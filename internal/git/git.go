@@ -109,6 +109,30 @@ func GetUpstream(ctx context.Context, dir string) (ahead, behind int, noUpstream
 	return ahead, behind, false, nil
 }
 
+// GetWorktree reports the absolute shared git directory and whether dir is a
+// linked worktree. The common dir (`git rev-parse --git-common-dir`) is shared
+// by every checkout of a repository, so it serves as a grouping key; the
+// primary checkout is the one whose git dir equals the common dir, while linked
+// worktrees have a git dir under <common>/worktrees/<name>.
+//
+// Verified against git 2.54: for the primary checkout both paths are
+// "<repo>/.git"; for a linked worktree the git dir is
+// "<repo>/.git/worktrees/<name>" while the common dir stays "<repo>/.git".
+func GetWorktree(ctx context.Context, dir string) (commonDir string, isLinked bool, err error) {
+	out, err := runGit(ctx, dir, "rev-parse", "--path-format=absolute", "--git-common-dir", "--git-dir")
+	if err != nil {
+		return "", false, err
+	}
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	if len(lines) < 2 {
+		// Older git without --path-format prints a single value; treat as primary.
+		return strings.TrimSpace(out), false, nil
+	}
+	common := strings.TrimSpace(lines[0])
+	gitDir := strings.TrimSpace(lines[1])
+	return common, common != gitDir, nil
+}
+
 // GetRepoName extracts the repository name from remote URL or directory.
 func GetRepoName(ctx context.Context, dir string) string {
 	// try origin remote first
