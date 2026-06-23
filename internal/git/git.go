@@ -188,6 +188,78 @@ func GetRepoName(ctx context.Context, dir string) string {
 	return filepath.Base(dir)
 }
 
+// Fetch updates remote-tracking refs from origin and prunes deleted ones.
+func Fetch(ctx context.Context, dir string) error {
+	_, err := runGit(ctx, dir, "fetch", "--prune", "origin")
+	return err
+}
+
+// LocalBranches returns the short names of all local branches.
+func LocalBranches(ctx context.Context, dir string) ([]string, error) {
+	out, err := runGit(ctx, dir, "for-each-ref", "--format=%(refname:short)", "refs/heads/")
+	if err != nil {
+		return nil, err
+	}
+	return nonEmptyLines(out), nil
+}
+
+// RemoteBranches returns the short names of branches on origin, stripped of the
+// "origin/" prefix and excluding the symbolic origin/HEAD.
+func RemoteBranches(ctx context.Context, dir string) ([]string, error) {
+	out, err := runGit(ctx, dir, "for-each-ref", "--format=%(refname:short)", "refs/remotes/origin/")
+	if err != nil {
+		return nil, err
+	}
+	var branches []string
+	for _, line := range nonEmptyLines(out) {
+		name := strings.TrimPrefix(line, "origin/")
+		if name == "HEAD" {
+			continue
+		}
+		branches = append(branches, name)
+	}
+	return branches, nil
+}
+
+// WorktreeBranches maps each branch checked out in a worktree to its path,
+// parsed from `git worktree list --porcelain`.
+func WorktreeBranches(ctx context.Context, dir string) (map[string]string, error) {
+	out, err := runGit(ctx, dir, "worktree", "list", "--porcelain")
+	if err != nil {
+		return nil, err
+	}
+	return parseWorktreePorcelain(out), nil
+}
+
+// parseWorktreePorcelain extracts branch→path pairs from the porcelain stream,
+// where each worktree block is a "worktree <path>" line optionally followed by
+// a "branch refs/heads/<name>" line.
+func parseWorktreePorcelain(out string) map[string]string {
+	branches := make(map[string]string)
+	var path string
+	for _, line := range strings.Split(out, "\n") {
+		switch {
+		case strings.HasPrefix(line, "worktree "):
+			path = strings.TrimPrefix(line, "worktree ")
+		case strings.HasPrefix(line, "branch "):
+			ref := strings.TrimPrefix(line, "branch ")
+			branches[strings.TrimPrefix(ref, "refs/heads/")] = path
+		}
+	}
+	return branches
+}
+
+// nonEmptyLines splits s on newlines and returns the trimmed, non-empty lines.
+func nonEmptyLines(s string) []string {
+	var out []string
+	for _, line := range strings.Split(s, "\n") {
+		if t := strings.TrimSpace(line); t != "" {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
 // parseRemoteURL extracts repo name from git remote URL.
 func parseRemoteURL(remote string) string {
 	// handle scp-style: git@github.com:user/repo.git
