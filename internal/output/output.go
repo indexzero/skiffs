@@ -143,18 +143,23 @@ func statusString(r report.RepoStatus) string {
 		status.WriteString(Gray("○0 "))
 	}
 
+	// No tracking branch is a presence fact, not a sync magnitude: the
+	// ahead/behind columns are undefined, so render one dim token rather than
+	// painting both arrows with a yellow dash that conflates "N/A" with
+	// "caution".
+	if r.NoUpstream {
+		status.WriteString(Dim("no upstream"))
+		return status.String()
+	}
+
 	if r.Ahead > 0 {
 		status.WriteString(Green("↑%d ", r.Ahead))
-	} else if r.NoUpstream {
-		status.WriteString(Yellow("↑- "))
 	} else {
 		status.WriteString(Gray("↑0 "))
 	}
 
 	if r.Behind > 0 {
 		status.WriteString(Green("↓%d", r.Behind))
-	} else if r.NoUpstream {
-		status.WriteString(Yellow("↓-"))
 	} else {
 		status.WriteString(Gray("↓0"))
 	}
