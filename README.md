@@ -30,9 +30,26 @@ skiffs -f all
 
 # output as JSON
 skiffs -o json
+
+# find local branches safe to delete in a repo
+skiffs prune
+
+# compare two saved scans
+skiffs diff old.json new.json
 ```
 
+## Commands
+
+| Command | Description |
+| --- | --- |
+| `skiffs` | Scan directory trees and report each repo's status (default). |
+| `skiffs prune` | Classify a repo's local branches as safe / maybe-safe to delete. |
+| `skiffs diff <old> <new>` | Compare two saved JSON scans and show what changed. |
+| `skiffs version` | Print version information. |
+
 ## Flags
+
+These apply to the default scan command:
 
 ```
 -r, --root     Root directories to scan (repeatable, default: .)
