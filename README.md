@@ -45,14 +45,33 @@ skiffs -o json
 ## Output
 
 Table output shows repo name, branch, and status indicators:
-- Uncommitted files count
-- Commits ahead of upstream (unpushed)
-- Commits behind upstream (unpulled)
+- Uncommitted files count (`●N`)
+- Commits ahead of upstream, unpushed (`↑N`)
+- Commits behind upstream, unpulled (`↓N`)
 
-JSON output includes full file lists for each status category:
-- Modified files
-- Untracked files
-- Staged files
+A branch with no tracking branch reads `no upstream` instead of the ahead/behind
+columns — that's a fact about the branch, not a per-arrow warning. When a branch
+has diverged from the repository's default branch (resolved from `origin/HEAD`),
+a dim `[main ↑N ↓N]` suffix shows how far, even when there's no upstream to
+compare against.
+
+### Worktrees
+
+Checkouts that share a repository (linked worktrees) are grouped under a single
+header instead of repeating the repo name once per checkout:
+
+```
+yourbytes (3 worktrees)
+  @ main                     ●0 ↑0 ↓0
+  + typed/source-a           ●2 ↑9 ↓39  [main ↑9 ↓39]
+  + typed/source-b           ○0 ↑9 ↓39  [main ↑9 ↓39]
+```
+
+`@` marks the primary checkout; `+` marks a linked worktree.
+
+JSON output includes full file lists for each status category (modified,
+untracked, staged) plus the worktree linkage (`commonDir`, `isWorktree`) and
+default-branch divergence (`defaultBranch`, `aheadDefault`, `behindDefault`).
 
 ## Comparing Scans Over Time
 
@@ -85,6 +104,48 @@ Changed:
   another-repo
     → dirtied
     uncommitted: +3
+```
+
+## Pruning Branches
+
+`skiffs prune` finds local branches that are safe to delete in a single
+repository. It classifies branches that no longer exist on the remote:
+
+- **AreSafe** — a merged or closed pull request matches the branch (safe to
+  delete; rendered dimmed)
+- **MaybeSafe** — no matching PR was found (review before deleting; rendered in
+  yellow)
+
+Branches still on the remote are ignored, and branches checked out in a worktree
+are called out separately since they can't be deleted in place.
+
+```sh
+# fetch + analyze the current repository
+skiffs prune
+
+# skip the fetch, use existing remote refs
+skiffs prune --no-fetch
+
+# analyze a specific repo, as JSON
+skiffs prune -r ~/Code/myproject -o json
+```
+
+Requires the [`gh`](https://cli.github.com) CLI, authenticated (`gh auth login`),
+to look up pull-request state. This is a Go port of the `bonsai` script.
+
+```
+Prune Report
+repo: .
+
+AreSafe (not on remote + merged/closed PR)
+  ✓ feat/old-experiment
+  ✓ fix/typo
+
+MaybeSafe (not on remote + no matching PR — review first)
+  ? feat/wip
+
+To delete AreSafe branches:
+  git branch -D feat/old-experiment fix/typo
 ```
 
 ## License
