@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -84,7 +85,7 @@ func analyzePrune(ctx context.Context, dir string) (report.PruneResult, error) {
 	return report.AnalyzeBranches(local, remote, prBranches, worktrees), nil
 }
 
-func writePruneTable(w *os.File, dir string, r report.PruneResult) {
+func writePruneTable(w io.Writer, dir string, r report.PruneResult) {
 	fmt.Fprintln(w)
 	fmt.Fprintf(w, "%s\n", output.Bold("Prune Report"))
 	fmt.Fprintf(w, "%s %s\n\n", output.Gray("repo:"), dir)
@@ -109,7 +110,7 @@ func writePruneTable(w *os.File, dir string, r report.PruneResult) {
 	}
 }
 
-func writePruneSection(w *os.File, branches []report.BranchSafety, marker string) {
+func writePruneSection(w io.Writer, branches []report.BranchSafety, marker string) {
 	if len(branches) == 0 {
 		fmt.Fprintf(w, "  %s\n", output.Dim("(none)"))
 		return
