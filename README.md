@@ -128,10 +128,10 @@ Changed:
 `skiffs prune` finds local branches that are safe to delete in a single
 repository. It classifies branches that no longer exist on the remote:
 
-- **AreSafe** — a merged or closed pull request matches the branch (safe to
-  delete; rendered dimmed)
-- **MaybeSafe** — no matching PR was found (review before deleting; rendered in
-  yellow)
+- **Safe to delete** — a merged or closed pull request matches the branch
+  (rendered dimmed)
+- **Needs review** — no matching PR was found (review before deleting; rendered
+  in yellow)
 
 Branches still on the remote are ignored, and branches checked out in a worktree
 are called out separately since they can't be deleted in place.
@@ -154,14 +154,14 @@ to look up pull-request state. This is a Go port of the `bonsai` script.
 Prune Report
 repo: .
 
-AreSafe (not on remote + merged/closed PR)
+Safe to delete (not on remote + merged/closed PR)
   ✓ feat/old-experiment
   ✓ fix/typo
 
-MaybeSafe (not on remote + no matching PR — review first)
+Needs review (not on remote + no matching PR)
   ? feat/wip
 
-To delete AreSafe branches:
+To delete safe branches:
   git branch -D feat/old-experiment fix/typo
 ```
 

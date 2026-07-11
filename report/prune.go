@@ -13,16 +13,17 @@ type BranchSafety struct {
 	Safe bool `json:"safe"`
 }
 
-// PruneResult is the categorized output of branch-prune analysis.
+// PruneResult is the categorized output of branch-prune analysis. Both slices
+// are always non-nil so JSON consumers receive an array, never null.
 type PruneResult struct {
-	AreSafe   []BranchSafety `json:"areSafe"`
-	MaybeSafe []BranchSafety `json:"maybeSafe"`
+	SafeToDelete []BranchSafety `json:"safeToDelete"`
+	NeedsReview  []BranchSafety `json:"needsReview"`
 }
 
 // AnalyzeBranches categorizes local branches that no longer exist on the remote:
 //
-//   - AreSafe:   the branch name matches a merged or closed PR — safe to delete.
-//   - MaybeSafe: no matching PR was found — review before deleting.
+//   - SafeToDelete: the branch name matches a merged or closed PR.
+//   - NeedsReview:  no matching PR was found — review before deleting.
 //
 // Branches still present on the remote are skipped entirely. A branch checked
 // out in a worktree keeps its classification but carries the worktree path, so
@@ -34,7 +35,11 @@ func AnalyzeBranches(local, remote []string, mergedClosedPR map[string]bool, wor
 		remoteSet[b] = true
 	}
 
-	var result PruneResult
+	// Initialize non-nil so the JSON contract is always an array.
+	result := PruneResult{
+		SafeToDelete: []BranchSafety{},
+		NeedsReview:  []BranchSafety{},
+	}
 	for _, b := range local {
 		if remoteSet[b] {
 			continue
@@ -45,16 +50,16 @@ func AnalyzeBranches(local, remote []string, mergedClosedPR map[string]bool, wor
 			Safe:         mergedClosedPR[b],
 		}
 		if entry.Safe {
-			result.AreSafe = append(result.AreSafe, entry)
+			result.SafeToDelete = append(result.SafeToDelete, entry)
 		} else {
-			result.MaybeSafe = append(result.MaybeSafe, entry)
+			result.NeedsReview = append(result.NeedsReview, entry)
 		}
 	}
 
-	sortBySafety := func(s []BranchSafety) {
+	sortByName := func(s []BranchSafety) {
 		sort.Slice(s, func(i, j int) bool { return s[i].Name < s[j].Name })
 	}
-	sortBySafety(result.AreSafe)
-	sortBySafety(result.MaybeSafe)
+	sortByName(result.SafeToDelete)
+	sortByName(result.NeedsReview)
 	return result
 }

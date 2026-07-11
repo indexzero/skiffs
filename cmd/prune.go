@@ -22,8 +22,8 @@ var pruneCmd = &cobra.Command{
 	Use:   "prune",
 	Short: "Find local branches that are safe to delete",
 	Long: "prune analyzes the local branches of a single repository and classifies " +
-		"those no longer on the remote: AreSafe (a merged or closed PR matches the " +
-		"branch) and MaybeSafe (no matching PR — review first). It is a Go port of bonsai.",
+		"those no longer on the remote: safe to delete (a merged or closed PR matches " +
+		"the branch) and needs review (no matching PR). It is a Go port of bonsai.",
 	RunE: runPrune,
 }
 
@@ -89,22 +89,22 @@ func writePruneTable(w *os.File, dir string, r report.PruneResult) {
 	fmt.Fprintf(w, "%s\n", output.Bold("Prune Report"))
 	fmt.Fprintf(w, "%s %s\n\n", output.Gray("repo:"), dir)
 
-	// AreSafe is safe to delete, so it costs little attention: dim the rows.
+	// Safe-to-delete costs little attention, so dim the rows.
 	fmt.Fprintf(w, "%s %s\n",
-		output.Green("AreSafe"),
+		output.Green("Safe to delete"),
 		output.Dim("(not on remote + merged/closed PR)"))
-	writePruneSection(w, r.AreSafe, output.Dim("✓"))
+	writePruneSection(w, r.SafeToDelete, output.Dim("✓"))
 
 	fmt.Fprintln(w)
 
-	// MaybeSafe needs review, so it should draw the eye: yellow.
+	// Needs-review should draw the eye, so render it in yellow.
 	fmt.Fprintf(w, "%s %s\n",
-		output.Yellow("MaybeSafe"),
-		output.Dim("(not on remote + no matching PR — review first)"))
-	writePruneSection(w, r.MaybeSafe, output.Yellow("?"))
+		output.Yellow("Needs review"),
+		output.Dim("(not on remote + no matching PR)"))
+	writePruneSection(w, r.NeedsReview, output.Yellow("?"))
 
-	if deletable := deletableNames(r.AreSafe); len(deletable) > 0 {
-		fmt.Fprintf(w, "\n%s\n", output.Bold("To delete AreSafe branches:"))
+	if deletable := deletableNames(r.SafeToDelete); len(deletable) > 0 {
+		fmt.Fprintf(w, "\n%s\n", output.Bold("To delete safe branches:"))
 		fmt.Fprintf(w, "  %s\n", output.Cyan("git branch -D %s", strings.Join(deletable, " ")))
 	}
 }
@@ -135,8 +135,8 @@ func writePruneSection(w *os.File, branches []report.BranchSafety, marker string
 	}
 }
 
-// deletableNames returns the AreSafe branches not pinned by a worktree, i.e.
-// the ones the suggested `git branch -D` command can remove immediately.
+// deletableNames returns the safe-to-delete branches not pinned by a worktree,
+// i.e. the ones the suggested `git branch -D` command can remove immediately.
 func deletableNames(branches []report.BranchSafety) []string {
 	var names []string
 	for _, b := range branches {

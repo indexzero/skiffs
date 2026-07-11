@@ -16,20 +16,20 @@ func TestAnalyzeBranches(t *testing.T) {
 
 	got := AnalyzeBranches(local, remote, mergedClosedPR, worktrees)
 
-	// AreSafe: branches not on remote that match a merged/closed PR, sorted.
+	// SafeToDelete: branches not on remote that match a merged/closed PR, sorted.
 	wantSafe := []BranchSafety{
 		{Name: "feat/in-wt", WorktreePath: "/checkouts/in-wt", Safe: true},
 		{Name: "feat/merged", Safe: true},
 		{Name: "fix/closed", Safe: true},
 	}
-	if !branchSlicesEqual(got.AreSafe, wantSafe) {
-		t.Errorf("AreSafe = %+v, want %+v", got.AreSafe, wantSafe)
+	if !branchSlicesEqual(got.SafeToDelete, wantSafe) {
+		t.Errorf("SafeToDelete = %+v, want %+v", got.SafeToDelete, wantSafe)
 	}
 
-	// MaybeSafe: not on remote, no matching PR.
-	wantMaybe := []BranchSafety{{Name: "feat/wip"}}
-	if !branchSlicesEqual(got.MaybeSafe, wantMaybe) {
-		t.Errorf("MaybeSafe = %+v, want %+v", got.MaybeSafe, wantMaybe)
+	// NeedsReview: not on remote, no matching PR.
+	wantReview := []BranchSafety{{Name: "feat/wip"}}
+	if !branchSlicesEqual(got.NeedsReview, wantReview) {
+		t.Errorf("NeedsReview = %+v, want %+v", got.NeedsReview, wantReview)
 	}
 }
 
@@ -40,7 +40,7 @@ func TestAnalyzeBranches_AllOnRemote(t *testing.T) {
 		map[string]bool{},
 		map[string]string{},
 	)
-	if len(got.AreSafe) != 0 || len(got.MaybeSafe) != 0 {
+	if len(got.SafeToDelete) != 0 || len(got.NeedsReview) != 0 {
 		t.Errorf("expected nothing prunable, got %+v", got)
 	}
 }
