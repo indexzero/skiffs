@@ -36,77 +36,115 @@ func runGit(ctx context.Context, dir string, args ...string) (string, error) {
 	return stdout.String(), nil
 }
 
-// GetBranch returns the current branch name.
-func GetBranch(ctx context.Context, dir string) (string, error) {
-	out, err := runGit(ctx, dir, "branch", "--show-current")
-	if err != nil {
-		return "", err
-	}
-	branch := strings.TrimSpace(out)
-	if branch == "" {
-		// detached HEAD
-		out, err = runGit(ctx, dir, "rev-parse", "--short", "HEAD")
-		if err != nil {
-			return "HEAD", nil
-		}
-		return strings.TrimSpace(out), nil
-	}
-	return branch, nil
+// State is the branch, file, and upstream status of a repository, read in a
+// single `git status` invocation.
+type State struct {
+	Branch     string
+	Files      FileStatus
+	Ahead      int
+	Behind     int
+	NoUpstream bool
 }
 
-// GetStatus parses git status and returns categorized file lists.
-func GetStatus(ctx context.Context, dir string) (FileStatus, error) {
-	out, err := runGit(ctx, dir, "status", "--porcelain=v1")
+// GetState reads branch name, upstream divergence, and file status in one
+// `git status --porcelain=v2 --branch` call, replacing the three separate
+// subprocesses (branch / rev-list @{u} / status) it used to take per repo.
+func GetState(ctx context.Context, dir string) (State, error) {
+	out, err := runGit(ctx, dir, "status", "--porcelain=v2", "--branch")
 	if err != nil {
-		return FileStatus{}, err
+		return State{}, err
 	}
+	return parseStatusV2(out), nil
+}
 
-	var fs FileStatus
-	lines := strings.Split(out, "\n")
-	for _, line := range lines {
-		if len(line) < 3 {
-			continue
-		}
-		xy := line[:2]
-		file := strings.TrimSpace(line[3:])
+// parseStatusV2 parses `git status --porcelain=v2 --branch` output. Header
+// lines carry branch and upstream state; entry lines ('1' ordinary, '2'
+// renamed/copied, 'u' unmerged, '?' untracked) carry per-file state. A repo
+// with no upstream simply omits the branch.upstream / branch.ab headers, which
+// is why NoUpstream defaults true until one is seen.
+func parseStatusV2(out string) State {
+	st := State{NoUpstream: true}
+	var oid string
 
-		// X is index status, Y is worktree status
-		x, y := xy[0], xy[1]
-
+	for _, line := range strings.Split(out, "\n") {
 		switch {
-		case x == '?' && y == '?':
-			fs.Untracked = append(fs.Untracked, file)
-		case x == 'A' || x == 'M' || x == 'D' || x == 'R' || x == 'C':
-			// staged changes
-			fs.Staged = append(fs.Staged, file)
-			// check if also modified in worktree
-			if y == 'M' || y == 'D' {
-				fs.Modified = append(fs.Modified, file)
+		case strings.HasPrefix(line, "# branch.oid "):
+			oid = strings.TrimPrefix(line, "# branch.oid ")
+		case strings.HasPrefix(line, "# branch.head "):
+			st.Branch = strings.TrimPrefix(line, "# branch.head ")
+		case strings.HasPrefix(line, "# branch.upstream "):
+			st.NoUpstream = false
+		case strings.HasPrefix(line, "# branch.ab "):
+			st.NoUpstream = false
+			fields := strings.Fields(strings.TrimPrefix(line, "# branch.ab "))
+			if len(fields) == 2 {
+				st.Ahead, _ = strconv.Atoi(strings.TrimPrefix(fields[0], "+"))
+				st.Behind, _ = strconv.Atoi(strings.TrimPrefix(fields[1], "-"))
 			}
-		case y == 'M' || y == 'D':
-			fs.Modified = append(fs.Modified, file)
+		case strings.HasPrefix(line, "# "):
+			// other header (e.g. branch.oid == (initial)); ignore
+		case strings.HasPrefix(line, "? "):
+			st.Files.Untracked = append(st.Files.Untracked, line[2:])
+		case strings.HasPrefix(line, "! "):
+			// ignored file; skip
+		case strings.HasPrefix(line, "1 "), strings.HasPrefix(line, "2 "):
+			parseV2Changed(line, &st.Files)
+		case strings.HasPrefix(line, "u "):
+			// unmerged (conflict) — a worktree change worth flagging as modified
+			if p := v2Path(line, 10); p != "" {
+				st.Files.Modified = append(st.Files.Modified, p)
+			}
 		}
 	}
-	return fs, nil
+
+	// A detached checkout reports "(detached)"; fall back to a short oid to
+	// preserve the previous behaviour of showing an abbreviated commit.
+	if st.Branch == "(detached)" {
+		st.Branch = shortOID(oid)
+	}
+	return st
 }
 
-// GetUpstream returns ahead/behind counts relative to upstream.
-// Returns noUpstream=true if no upstream is configured.
-func GetUpstream(ctx context.Context, dir string) (ahead, behind int, noUpstream bool, err error) {
-	out, err := runGit(ctx, dir, "rev-list", "--left-right", "--count", "@{u}...HEAD")
-	if err != nil {
-		// no upstream configured
-		return 0, 0, true, nil
+// parseV2Changed classifies an ordinary ('1') or renamed/copied ('2') entry.
+// The two-character <XY> field holds index (staged) and worktree status; '.'
+// means unmodified. This mirrors the porcelain v1 classification exactly.
+func parseV2Changed(line string, fs *FileStatus) {
+	nFields := 9 // ordinary entry: 8 fixed fields then the path
+	if strings.HasPrefix(line, "2 ") {
+		nFields = 10 // renamed/copied entry inserts an <Xscore> field
 	}
-
-	parts := strings.Fields(strings.TrimSpace(out))
-	if len(parts) != 2 {
-		return 0, 0, true, nil
+	parts := strings.SplitN(line, " ", nFields)
+	if len(parts) < nFields || len(parts[1]) != 2 {
+		return
 	}
+	xy := parts[1]
+	// A rename path is "<new>\t<orig>"; the new path comes first.
+	path := strings.SplitN(parts[nFields-1], "\t", 2)[0]
 
-	behind, _ = strconv.Atoi(parts[0])
-	ahead, _ = strconv.Atoi(parts[1])
-	return ahead, behind, false, nil
+	if strings.IndexByte("AMDRC", xy[0]) >= 0 {
+		fs.Staged = append(fs.Staged, path)
+	}
+	if xy[1] == 'M' || xy[1] == 'D' {
+		fs.Modified = append(fs.Modified, path)
+	}
+}
+
+// v2Path returns the pathname field of a space-delimited porcelain v2 entry
+// that has nFields columns, stripping any "\t<orig>" rename suffix.
+func v2Path(line string, nFields int) string {
+	parts := strings.SplitN(line, " ", nFields)
+	if len(parts) < nFields {
+		return ""
+	}
+	return strings.SplitN(parts[nFields-1], "\t", 2)[0]
+}
+
+// shortOID abbreviates a commit id to 8 characters (or fewer if shorter).
+func shortOID(oid string) string {
+	if len(oid) > 8 {
+		return oid[:8]
+	}
+	return oid
 }
 
 // GetDefaultBranch returns the remote default ref (e.g. "origin/main")
@@ -121,7 +159,7 @@ func GetDefaultBranch(ctx context.Context, dir string) (string, error) {
 
 // GetDivergence returns how far HEAD is ahead of and behind base, computed as
 // `git rev-list --left-right --count base...HEAD` (left=base→behind,
-// right=HEAD→ahead), matching the convention used by GetUpstream.
+// right=HEAD→ahead).
 func GetDivergence(ctx context.Context, dir, base string) (ahead, behind int, err error) {
 	out, err := runGit(ctx, dir, "rev-list", "--left-right", "--count", base+"...HEAD")
 	if err != nil {
