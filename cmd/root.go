@@ -188,6 +188,8 @@ func checkRepo(ctx context.Context, path string) report.RepoStatus {
 	var aheadDefault, behindDefault int
 	if base, derr := git.GetDefaultBranch(ctx, path); derr == nil {
 		defaultBranch = base
+		// A resolvable default that we then can't diff against (e.g. an unborn
+		// HEAD) is treated as "no divergence" rather than a scan error.
 		aheadDefault, behindDefault, _ = git.GetDivergence(ctx, path, base)
 	}
 

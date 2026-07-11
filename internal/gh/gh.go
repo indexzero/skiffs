@@ -22,7 +22,7 @@ func Available(ctx context.Context) error {
 		return fmt.Errorf("gh CLI not found: %w", err)
 	}
 	if err := exec.CommandContext(ctx, "gh", "auth", "status").Run(); err != nil {
-		return fmt.Errorf("gh not authenticated (run 'gh auth login')")
+		return fmt.Errorf("gh not authenticated (run 'gh auth login'): %w", err)
 	}
 	return nil
 }
