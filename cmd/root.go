@@ -139,58 +139,48 @@ func checkRepos(ctx context.Context, paths []string, maxWorkers int) []report.Re
 	return statuses
 }
 
-type repoChecker struct {
-	ctx  context.Context
-	path string
-	errs []string
-}
-
-func (c *repoChecker) branch() string {
-	b, err := git.GetBranch(c.ctx, c.path)
-	if err != nil {
-		c.errs = append(c.errs, "branch: "+err.Error())
-	}
-	return b
-}
-
-func (c *repoChecker) status() git.FileStatus {
-	s, err := git.GetStatus(c.ctx, c.path)
-	if err != nil {
-		c.errs = append(c.errs, "status: "+err.Error())
-	}
-	return s
-}
-
-func (c *repoChecker) upstream() (ahead, behind int, noUpstream bool) {
-	a, b, nu, err := git.GetUpstream(c.ctx, c.path)
-	if err != nil {
-		c.errs = append(c.errs, "upstream: "+err.Error())
-	}
-	return a, b, nu
-}
-
-func (c *repoChecker) err() string {
-	return strings.Join(c.errs, "; ")
-}
-
 func checkRepo(ctx context.Context, path string) report.RepoStatus {
-	c := &repoChecker{ctx: ctx, path: path}
-	files := c.status()
-	ahead, behind, noUpstream := c.upstream()
+	var errs []string
+
+	// Branch, file status, and upstream divergence come from one git call.
+	state, err := git.GetState(ctx, path)
+	if err != nil {
+		errs = append(errs, "state: "+err.Error())
+	}
+
+	// Worktree linkage is best-effort: detection failures leave the fields
+	// zero-valued so the repo renders as a standalone row rather than erroring.
+	commonDir, isWorktree, _ := git.GetWorktree(ctx, path)
+
+	// Divergence from the remote default branch is best-effort too: repos with
+	// no origin/HEAD simply leave these zero.
+	var defaultBranch string
+	var aheadDefault, behindDefault int
+	if base, derr := git.GetDefaultBranch(ctx, path); derr == nil {
+		defaultBranch = base
+		// A resolvable default that we then can't diff against (e.g. an unborn
+		// HEAD) is treated as "no divergence" rather than a scan error.
+		aheadDefault, behindDefault, _ = git.GetDivergence(ctx, path, base)
+	}
 
 	return report.RepoStatus{
 		Path:   path,
 		Name:   git.GetRepoName(ctx, path),
-		Branch: c.branch(),
+		Branch: state.Branch,
 		Files: report.FileStatus{
-			Modified:  files.Modified,
-			Untracked: files.Untracked,
-			Staged:    files.Staged,
+			Modified:  state.Files.Modified,
+			Untracked: state.Files.Untracked,
+			Staged:    state.Files.Staged,
 		},
-		Ahead:      ahead,
-		Behind:     behind,
-		NoUpstream: noUpstream,
-		Error:      c.err(),
+		Ahead:         state.Ahead,
+		Behind:        state.Behind,
+		NoUpstream:    state.NoUpstream,
+		Error:         strings.Join(errs, "; "),
+		CommonDir:     commonDir,
+		IsWorktree:    isWorktree,
+		DefaultBranch: defaultBranch,
+		AheadDefault:  aheadDefault,
+		BehindDefault: behindDefault,
 	}
 }
 

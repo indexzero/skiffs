@@ -25,6 +25,25 @@ type RepoStatus struct {
 	Behind     int        `json:"behind"`
 	NoUpstream bool       `json:"noUpstream,omitempty"`
 	Error      string     `json:"error,omitempty"`
+
+	// CommonDir is the absolute path to the shared git directory
+	// (`git rev-parse --git-common-dir`). Every checkout of the same
+	// repository reports the same CommonDir, so it serves as the key for
+	// grouping worktrees of one repo together. Empty if detection failed.
+	CommonDir string `json:"commonDir,omitempty"`
+	// IsWorktree is true for a linked worktree and false for the primary
+	// checkout (the one whose git dir equals CommonDir).
+	IsWorktree bool `json:"isWorktree,omitempty"`
+
+	// DefaultBranch is the remote default ref (e.g. "origin/main") resolved
+	// from origin/HEAD, or empty if there is none. AheadDefault/BehindDefault
+	// count how far HEAD has diverged from it. This axis is independent of the
+	// upstream (@{u}) comparison above: it answers "how far from main" rather
+	// than "how far from my tracking branch", and is the basis for a future
+	// integration ("patch landed on main") test.
+	DefaultBranch string `json:"defaultBranch,omitempty"`
+	AheadDefault  int    `json:"aheadDefault,omitempty"`
+	BehindDefault int    `json:"behindDefault,omitempty"`
 }
 
 // IsDirty returns true if the repo has uncommitted changes or is ahead/behind.
